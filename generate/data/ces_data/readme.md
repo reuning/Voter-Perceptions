@@ -1,0 +1,1 @@
+This folder contains the raw_data downloaded from the [C/CES dataverse](https://cces.gov.harvard.edu/). I am not providing it here but it can be downloaded from the dataverse. 

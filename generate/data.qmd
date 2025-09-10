@@ -1,0 +1,181 @@
+---
+title: (C)CES Data
+format:
+  html:
+    code-line-numbers: true
+execute:
+  echo: false
+  warning: false
+---
+
+
+The data is all from the (C)CES. They have been asking, since 2009, how liberal or conservative different candidates are using a 7 point likert scale question. Here I provide some useful (maybe?) details about the data.
+
+## Candidates
+
+
+
+```{r}
+library(tidyverse)
+library(gt)
+
+all_ratings <- read_csv(here::here(
+  "generate",
+  "data",
+  "supplementary_data",
+  "all_ratings.csv"
+))
+all_ratings |>
+  select(year, starts_with("n_")) |>
+  arrange(year) |>
+  gt() |>
+  tab_spanner("Governor", n_Gov_Incumbent) |>
+  tab_spanner("Representative", n_Rep_Candidate:n_Rep_Former) |>
+  tab_spanner("Senator", n_Sen_Incumbent:n_Sen_Candidate) |>
+  cols_label_with(columns = -year, fn = function(x) {
+    stringr::str_split(x, "_")[[1]][3]
+  }) |>
+  cols_label("year" = "Year") |>
+  cols_align(columns = -year, align = "center") |>
+  sub_missing(missing_text = "-")
+
+```
+
+
+<!--
+## Pre-2009 Data
+
+```{r}
+data <- read_csv(here::here(
+  "generate",
+  "data",
+  "cleaned_data",
+  "full_data.csv"
+))
+data <- data |>
+  filter(year < 2011) |>
+  filter(
+    candidate %in%
+      c(
+        "Democratic Party",
+        "Republican Party",
+        "Barack Obama",
+        "John McCain"
+      )
+  )
+
+data <- data |>
+  mutate(
+    type = case_when(
+      year < 2009 ~ "Thermometer",
+      year > 2008 ~ "Likert"
+    ),
+    ordinal_rating = case_when(
+      year > 2008 ~ rating,
+      year < 2009 ~
+        as.numeric(cut(
+          rating,
+          breaks = seq(0, 101, by = 100 / 7),
+          include.lowest = T,
+          ordered = T
+        ))
+    )
+  )
+
+ordinal_data <- data |> group_by(type, candidate, ordinal_rating) |> tally()
+
+cont_data <- data |>
+  filter(year < 2009) |>
+  group_by(candidate, rating) |>
+  tally()
+
+ojs_define(cont_data = cont_data, ordinal_data = ordinal_data)
+
+```
+
+Thermometer ratings are a common instrument used to get "fine-grained" data on how individuals feel towards someone. Respondents are able to select any number between 0 and 100, creating 101 unique values. The main issue with these is that most individuals do not have a clear understanding of how, for example, 33 differs from 34. Instead individuals tend to select a small subset of numbers with some random deviations. 
+
+```{ojs}
+//| label: fig-therm
+//| fig-cap: Thermometer Ratings
+
+cont_data_trans = transpose(cont_data)
+Plot.plot({
+    y: {percent: true, label: "Percent", labelAnchor: "center", labelArrow: "none"},
+    x: {label: "Rating", labelAnchor: "center", labelArrow: "none"},
+    fy: {
+      tickRotate: 90
+    },
+    marks: [
+    Plot.rectY(cont_data_trans, Plot.normalizeY("sum", Plot.binX({y:"sum"}, 
+        {x: {thresholds: 101, value: "rating"}, y:"n"})))
+    ],
+    facet: {
+      data:cont_data_trans,
+      y: "candidate",
+      label: null
+    }
+
+})
+
+```
+
+```{ojs}
+ordinal_data_trans = transpose(ordinal_data)
+Plot.plot({
+    grid: true,
+    y: {percent: true, label: "Percent", labelAnchor: "center", labelArrow: "none"},
+    x: {label: "Rating", labelAnchor: "center", labelArrow: "none"},
+    fy: {
+      tickRotate: 90
+    },
+    marks: [
+    Plot.barY(ordinal_data_trans, 
+      Plot.normalizeY("sum", 
+        {x: "ordinal_rating", y: "n", fx: "type", fy: "candidate"}))
+    ],
+    facet: {
+      label: null
+    },
+})
+
+```
+
+--> 
+
+## Bridging 
+
+A critical need in A-M scaling is for the raters to rate entities that others rate, these are sometimes referred to as "bridges". Bridges help to pin down the common scale, making ratings comparable. In the C/CES data there are a set of people/entities that everyone rates but these groups change overtime. In most cases ths includes the President and the two major political parties. 
+
+
+```{r}
+
+bridge_df <- read_csv(here::here(
+  "generate",
+  "data",
+  "supplementary_data",
+  "bridges.csv"
+))
+
+bridge_df |>
+  rename(
+    `Kamala Harris` = "Kamala D. Harris"
+  ) |>
+  gt() |>
+  fmt_number(columns = `Democratic Party`:`Kamala Harris`, decimals = 0) |>
+  sub_missing(missing_text = "-")
+
+```
+
+
+## Panel Data
+
+There are several years where the CES has included a panel of voters across multiple survey years. In this case I have opted to ignore the panel aspect and treat them as if they are different people. This is likely throwing out some information but it seemed like the best option. There are three ways to approach this:
+
+1) Assume that voters have not changed at all across the survey panels. For this choice there would be one $\beta$ and one $\alpha$ for each voter which would be used repeatedly across panels. This assumes that they have not change their own political views in this time period, having roughly the same understanding of liberal-conservative across the time period. I thought this assumption was overly restrictive. 
+
+2) Use some sort of pooling model where each year's scores would help inform the other year's, but not entirely constrain them. This could be implemented with some sort of hierarchical prior on them or even a dynamic prior overtime. Although I think this is interesting, the computational complexity concerned me. 
+
+3) Treat them as all independent. This, as I said, ignores potentially useful information but was feasible. 
+
+I might return to try 2 at some point, we will see what the future holds. 

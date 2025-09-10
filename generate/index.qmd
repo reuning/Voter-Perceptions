@@ -1,0 +1,238 @@
+---
+title: Methodology
+execute:
+  echo: false
+  warning: false
+---
+
+This data is generated using [Bayesian Aldrich-McKelvey scaling](https://onlinelibrary.wiley.com/doi/full/10.1111/ajps.12151). This is used to overcome the fact that individuals might have their own standards for how _liberal_ a liberal candidate is (or how _conservative_ a conservative candidate is). In particular, we use the fact that voters each rate some shared set of candidates/groups as a way to adjust what it means for a voter to be liberal or conservative. 
+
+
+## Basic Model 
+
+In order to explain this we need to use some notation from statistics. In particular we start with the fact that we have $i$ voters who each rate $j$ candidates. We label these ratings $Y_{i,j}$ (for now we ignore what this data looks like). We then _assume_ that there exists some $\theta_j$ which is the "true" perceived ideology of a candidate. We then assume that we can connect the observed ratings ($Y_{i,j}$) with with $\theta_j$ through the formula: 
+
+$$
+Y_{i,j} \sim \mathcal{F}(\alpha_i + \beta_i \cdot \theta_{j})
+$$ {#eq-basic}
+
+This gives us two new bits of notation (which we call parameters as they are estimated): $\alpha_i$ and $\beta_i$. Each voter has a unique $\alpha_i$ and $\beta_i$ which are used to adjust how each voter's own understanding of the liberal-conservative spectrum vary by stretching/shrinking ($\beta_i$) or shifting ($\alpha_i$) the true value of $\theta_j$ into what they observe. 
+
+
+Right now we've used $\mathcal{F}$ to indicate that we put this through some sort of function. In practice $Y_{i,j}$ is an ordered variable from 1 to 7. We can use an [ordered logit](https://en.wikipedia.org/wiki/Ordered_logit) model to account for this. We shift here to talk about the probability of observing $y_{i,j}$ given a set of parameters (written as $P(y_{i,j} \vert \alpha_i, \beta_i, \theta_j, \tau)$): 
+
+$$
+P(y_{i,j} \vert \alpha_i, \beta_i, \theta_j, \tau) = 
+\begin{cases}
+    1 - \text{logit}^{-1}( \alpha_i + \beta_i \cdot \theta_j - \tau_1) & \text{if} \quad y_{ij} = 1 \\
+    \text{logit}^{-1}( \alpha_i + \beta_i \cdot \theta_j - \tau_{y_{ij}-1})  & \text{if} \quad 1 < y_{ij} < 6 \\ 
+    \quad - \text{logit}^{-1}( \alpha_i + \beta_i \cdot \theta_j - \tau_{y_{ij}}) & \\ 
+    \text{logit}^{-1}( \alpha_i + \beta_i \cdot \theta_j - \tau_6) & \text{if} \quad  y_{ij} = 7 \\
+\end{cases}
+$$ {#eq-logistic}
+
+This looks like a _lot_ because there is a lot of notation but the idea isn't that complicated. In particular it says the probability of observing a particular value is a function of where $\alpha_i + \beta_i \cdot \theta_j$ is in context of $\tau$ which, whe call cutpoints. In this case we have 6 cutpoints, the can be seen as dividing the space that $\alpha_i + \beta_i \cdot \theta_j$ is in. @fig-example-ordered shows what this looks like by mapping the probability of different responses. You can also set the $\alpha$ and $\beta$ to different values to see how they change. 
+
+
+
+```{ojs}
+
+expit = function(x){
+  return 1 / (1 + Math.exp(-x))
+}
+
+initData = {
+  const array = [];
+  for (let i = 0; i < 1001; ++i) {
+    array.push({
+        key: i,
+        theta: i/100-5,
+        "Very Liberal": 1 - expit(alpha + beta*(i/100-5) - -4),
+        "Liberal": expit(alpha + beta*(i/100-5) - -4) - expit(alpha + beta*(i/100-5) - -2),
+        "Somewhat Liberal": expit(alpha + beta*(i/100-5) - -2) - expit(alpha + beta*(i/100-5) - -0.5),
+        "Moderate": expit(alpha + beta*(i/100-5) - -0.5) - expit(alpha + beta*(i/100-5) - 0.5),     
+        "Somewhat Conservative": expit(alpha + beta*(i/100-5) - 0.5) - expit(alpha + beta*(i/100-5) - 2), 
+        "Conservative": expit(alpha + beta*(i/100-5) - 2) - expit(alpha + beta*(i/100-5) - 4), 
+        "Very Conservative": expit(alpha + beta*(i/100-5) - 4) 
+    });
+  }
+  return array;
+}
+wideData = Object.assign(initData, {columns: Object.keys(initData[0])});
+
+longData = {
+  let data = [];
+  for (let d of wideData) {
+    for (let col of wideData.columns.slice(2)) {
+      let row = {};
+      row[wideData.columns[0]] = d[wideData.columns[0]];
+      row[wideData.columns[1]] = d[wideData.columns[1]];
+      row['Type'] = col;
+      row['Prob'] = d[col];
+      data.push(row);
+    }
+  };
+  return data;
+}
+
+```
+
+```{ojs}
+//| label: fig-example-ordered
+//| fig-cap: Example of Ordered Logit Probabilities
+
+Plot.plot({
+  y: {
+    domain: [0, 1],
+    grid: true
+  },
+  color: {
+    type: "ordinal",
+    domain: ["Very Liberal", "Liberal", "Somewhat Liberal", "Moderate", "Somewhat Conservative", "Conservative", "Very Conservative"],
+    scheme: "Plasma",
+    label: "Response",
+    legend: true
+  },
+  marks: [
+    Plot.lineY(longData, {x: "theta", y: "Prob", stroke: "Type"}),
+    Plot.areaY(longData, {x: "theta", y2: "Prob", fill: "Type", fillOpacity: 0.2})
+
+  ]
+})
+
+```
+
+```{ojs}
+viewof beta = Inputs.range([0,2], {label: tex`\beta`, value: 1, step: 0.01})
+viewof alpha = Inputs.range([-3, 3], {label: tex`\alpha`, value: 0, step: 0.01})
+
+```
+
+## Adding in Time 
+
+The model so far can be used to estimate a single time period or several time periods independent from each other. We can improve upon this by assuming that any legislator's perceived ideology in a time period is likely to be similar to their perceived ideology in the previous time period. There are a lot of ways to do this, but here we use a robust random walk approach. We add a $t$ subscript to $\theta_j$ to indicate that we observe candidate $j$ over multiple time periods. The full setup is: 
+
+$$
+\begin{align}
+\theta_{j,1} &\sim \text{Normal}(0, 1) \\ 
+\theta_{j,t} &\sim \text{Student's t}_4(\theta_{j,t-1}, \sigma) \quad \forall t > 1 \\
+\end{align}
+$$ {#eq-dynamic}
+
+
+```{ojs}
+initDataTheta = {
+  const array = [];
+  for (let i = 0; i < 500; ++i){ 
+    var init = init_theta
+    var t2 = init + jstat.studentt.sample(4) * sigma + drift 
+    var t3 = t2 + jstat.studentt.sample(4) * sigma + drift
+    var t4 = t3 + jstat.studentt.sample(4) * sigma + drift
+    var t5 = t4 + jstat.studentt.sample(4) * sigma + drift
+
+    array.push({
+      draw: i,
+      "Time 1": init,
+      "Time 2": t2,
+      "Time 3": t3,
+      "Time 4": t4,
+      "Time 5": t5
+
+    })
+  }
+  return array
+}
+
+wideDataTheta = Object.assign(initDataTheta, {columns: Object.keys(initDataTheta[0])});
+
+longDataTheta = {
+  let data = [];
+  for (let d of wideDataTheta) {
+    for (let col of wideDataTheta.columns.slice(1))  {
+        let row = {};
+        row[wideDataTheta.columns[0]] = d[wideDataTheta.columns[0]];
+        row['Time'] = col;
+        row['Theta'] = d[col];
+        data.push(row);
+      
+    }
+  };
+  return data;
+}
+```
+
+@fig-example-movement demonstrates how this works. At Time 1 $\theta_j$ is estimated to be 0, in each time period after that $\theta_j$ can move. The red line shows the median value, while the darker lines from it show the 10th and 90th percentile, and the furthest lines the maximum and minimum values (this is based on a sample of 500 draws). With no other information, $\theta_j$ will not move substantially from previous values, but the use of the Student's t-distribution allows for sudden large values (which is why the maximum and minimum can be so extreme). @fig-example-movement allows you to change the $\sigma$ parameter as well as set a drift parameter to see how the movement of $\theta_j$ evolves overtime. 
+
+```{ojs}
+//| label: fig-example-movement
+//| fig-cap: Simulation of  Movement
+
+Plot.plot({
+  y: {
+    domain: [-4, 4],
+    grid: true
+  },
+  marks: [
+    // Plot.lineY(longDataTheta, {x: "Time", y: "Theta", z: "draw", stroke: "gray", strokewidth: .2}),
+    Plot.lineY(
+      longDataTheta,
+      Plot.groupX(
+        {y: "p90"},
+        {x: "Time", y: "Theta", stroke: "gray", strokeWidth: 2}
+      )
+    ),
+    Plot.lineY(
+      longDataTheta,
+      Plot.groupX(
+        {y: "p10"},
+        {x: "Time", y: "Theta", stroke: "gray", strokeWidth: 2}
+      )
+    ),
+        Plot.lineY(
+      longDataTheta,
+      Plot.groupX(
+        {y: "min"},
+        {x: "Time", y: "Theta", stroke: "gray", strokeWidth: 1}
+      )
+    ),
+    Plot.lineY(
+      longDataTheta,
+      Plot.groupX(
+        {y: "max"},
+        {x: "Time", y: "Theta", stroke: "gray", strokeWidth: 1}
+      )
+    ),
+    Plot.lineY(
+      longDataTheta,
+      Plot.groupX(
+        {y: "median"},
+        {x: "Time", y: "Theta", stroke: "red", strokeWidth: 4        }
+      )
+    )
+  ]
+})
+
+jstat = require("jstat")
+```
+
+
+```{ojs}
+viewof init_theta = Inputs.range([-2,2], {label: tex`\theta_{j,1}`, value: 0, step: 0.01})
+viewof sigma = Inputs.range([0, 1], {label: tex`\sigma`, value: 0.1, step: 0.01})
+viewof drift = Inputs.range([-2, 2], {label: "Drift", value: 0, step: 0.01})
+
+```
+
+## Odds and Ends
+
+In order to estimate the model in its entirety it is necessary to set priors on the parameters. This is useful as it allows us to identify the model as well. In this case we use the following priors: 
+
+$$
+\begin{align}
+  \alpha_j & \sim \text{Normal}(0, 1) \\
+  \beta_j & \sim \text{Normal}(1.5, 1) \\
+  \tau & \sim \text{Normal}(0, 3) 
+\end{align}
+$$ {#eq-align}
+
+

@@ -1,0 +1,104 @@
+---
+title: "Perceptions versus Legislation"
+execute:
+  echo: false
+  warning: false
+---
+
+
+The plot below relates the perceived ideology of a Member of Congress with their actual legislative ideology. You can use this to look at how voter perceptions predict legislative ideology, and how legislative ideology predicts voter perceptions. Use the dropdowns below the chart to select the election year, chamber, which legislative measure to use, and the direction of the relationship. Note that the x and y axis will flip. 
+
+```{ojs}
+
+Plot.plot({
+  className: "plot",
+  y: {domain: direction.var === "after" ? leg_domain : percep_domain},
+  x: {domain: direction.var === "before" ? leg_domain : percep_domain},
+  color: {
+    legend: true,
+    domain: ["Democratic", "Other", "Republican"],
+    range: ["#083a90", "#06be37", "#e81b23"]
+  },
+  marks: [
+    Plot.axisX({
+      label:  direction.var === "after" ? "Perceived Ideology" : "Legislative Ideology" ,
+      labelAnchor: "center", 
+      labelArrow: false}),
+    Plot.axisX({
+      label: "Conservative", 
+      labelAnchor: "right"}),  
+    Plot.axisY({
+      label: direction.var === "before" ? "Perceived Ideology" : "Legislative Ideology", 
+      labelAnchor: "center", 
+      labelArrow: false}),
+    Plot.axisY({
+      label: "Conservative", 
+      labelAnchor: "top"}),  
+    Plot.gridY({stroke: "black", strokeOpacity: 0.2}),
+    Plot.gridX({stroke: "black", strokeOpacity: 0.2}),
+    Plot.dot(datafiltered, 
+    {
+      y: vars.y_variable, 
+      x: vars.x_variable,
+      fill: "Party",
+      channels: {
+        "Name": "Candidate",
+        "Leg Ideo": `${ideo_selection.var}_${direction.var}`, 
+        "Voter Ideo": "Ideology",
+        "Chamber": `chamber_${direction.var}_election`
+      },
+      tip: {
+        format: {
+          y: false,
+          x: false
+        }
+      }
+      })
+  ]
+  }
+)
+viewof year = Inputs.select(["2010","2012","2014","2016", "2018", "2020", "2022", "2024"], {label: "Election Year", value: "2022"})
+viewof chamber = Inputs.checkbox(["House","Senate"], {label: "Chamber", value: ["House","Senate"]})
+viewof ideo_selection = Inputs.select(ideo_options, 
+    {label: "Legislative Measure:",
+    format: x => x.name,
+      value: ideo_options.find(x => x.name === "Nominate D1")})
+viewof direction = Inputs.select(dir_options, 
+    {label: "Direction", 
+    format: x => x.name,
+    value: dir_options.find(x => x.name == "Perception -> Legislation") })
+
+
+ideo_options = [
+  {name: "Nominate D1", var: "Nominate_D1"},
+  {name: "Nominate D2", var: "Nominate_D2"},
+  {name: "Nokken-Poole D1", var: "NP_D1"},
+  {name: "Nokken-Poole D2", var: "NP_D2"},
+]
+dir_options = [
+  {name: "Perception -> Legislation", var: "after"}, 
+  {name: "Legislation -> Perception", var: "before"}
+]
+leg_domain = [-1,1]
+percep_domain = [-4.5,4]
+
+
+
+data = FileAttachment("/generate/out/legislative_data.csv").csv({ typed: true })
+datafiltered = data.filter((d, i) => chamber.includes( direction.var === "after" ? d.chamber_after_election : d.chamber_before_election ) && d.Year == year)
+
+
+function get_variable(direct, ideo){
+  switch (direct) {
+    case "after": {
+      return {y_variable: `${ideo}_${direct}`, x_variable: "Ideology"}
+    }
+    case "before": {
+      return {y_variable: "Ideology", x_variable: `${ideo}_${direct}`}
+    }
+  }
+}
+vars = get_variable(direction.var, ideo_selection.var)
+
+
+```

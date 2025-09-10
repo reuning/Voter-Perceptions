@@ -1,0 +1,87 @@
+---
+title: Technical Details
+format:
+  html:
+    code-line-numbers: true
+execute:
+  echo: false
+  warning: false
+---
+
+
+I've struggled a lot to understand how to do a lot of things. The purpose of this section is to provide some examples and details of some of the code used to run the model in the hopes it might help other people in the future. Also maybe you'll have ideas on how to improve it? 
+
+## Stan Model
+
+The stan model isn't that complicated but it does require a few particular things that make it run a bit faster (I think). In particular I've attempted to vectorize everything where it is possible, and used a trick to use the GPU for the most computationally intense part. The full code is in @lst-stan. 
+
+### Data 
+
+A few important variables:
+
+- `rating` is a vector of the scores. 
+- `candidate_id` is a vector that connects the rating to which candidate is being rated.
+- `voter_id` is a vector that connects the rating to which voter did the rating. 
+- `first_instance` is a vector where 1 means a candidate has first entered the data, and 0 means they've been in the data before. 
+
+The initial data is setup so that each candidate is in order, meaning that if `candidate_id` has a section that is `[..., 4, 5, ...]` and if `first_instance[5]= 0` then 4 and 5 are for the same candidate one year after the other (if they are for a different candidate then `first_instance[5] = 1`). 
+
+### Transformed Data 
+
+The priors for $\theta_{j,t}$ will depend on if `t=1` or not. These will be all mixed together in the $\theta_{j,t}$ parameter so I create two vectors that identify which items in that vector are the first instance or not. In the end you'll have two vectors with no overlaps. For example: 
+
+- `first_id = [1,5,10,...]`
+- `not_first_id = [2,3,4,6,7,8,9,11,..]`
+
+All of this could be done outside of the model if I wanted to, but I found it easy enough to do it here and it should not change performance. 
+
+
+### Parameters 
+
+The parameters block declares all the parameters that are used in the model. I am going to reparametrize $\theta_{j,t}$ to improve efficiency. When $t>1$ instead of having $\theta_{j,t} \sim \text{Student's t}_4(\theta_{j,t-1}, \sigma)$ can be rewritten as $\theta_{j,t} = \theta_{j,t-1} + \sigma  \cdot \theta_{\text{raw}_{j,t}}$ where $\theta_{\text{raw}_{j,t}} \sim \text{Student's t}_4(0, 1)$. The initial parameterization runs into the problem of [Neal's Funnel](https://mc-stan.org/docs/stan-users-guide/efficiency-tuning.html#funnel.figure).
+
+Because of this I declare a `theta_raw` parameter, along with parameters for sigma (`theta_sd`), my cutpoints (`tau`) and `alpha` and `beta`. 
+
+### Transformed Parameters 
+
+The transformed parameters block deals with the reparameterization and with the fact that $\theta_{j,t}$ depends on if we are in the first instance or not. Because the values of $\theta_{j.t}$ depend on $\theta_{j,t-1}$ when $t>1$ it is necessary to use a for loop. 
+
+The heart of the for loop uses the [ternary operator](https://mc-stan.org/docs/reference-manual/expressions.html#conditional-operator.section) which is an efficient way to do if-else logic. This is used to set `theta[ii]`. If `first_instance[ii]` is non-zero (meaning true) then we return `theta_raw[ii]`, if `first_instance[ii]==0` then we return `theta[ii-1] + theta_raw[ii] * theta_sd` which is the reparameterization mentioned above. 
+
+This logic requires two things to make it possible. First, we need to have `theta` in the right order so that `theta[ii-1]` is the previous value. Second, `theta_raw` will use the indicators created in the transformed block to have both a standard normal prior and a Student's t prior. 
+
+### Model 
+
+The bottom half of this block is are simply the priors. The only thing there that is special is the use of the `first_id` and `not_first_id` in the last two lines to create the two separate priors for one vector. 
+
+The top half (or third) is used to estimate the ordered logistic regression which connects indicators to the parameters. What makes this weird is that I want to make use of the GPU through OpenCL. [Stan has a variety of distributions](https://mc-stan.org/docs/stan-users-guide/parallelization.html#opencl) that natively use OpenCL **but** the `ordered_logistic_lpmf` is not one of them. Instead `ordered_logistic_glm_lpmf` is. This [distribution](https://mc-stan.org/docs/functions-reference/bounded_discrete_distributions.html#ordered-logistic-generalized-linear-model-ordinal-regression) is meant to be used in the context of a generalized linear model (GLM) and so, along with cutpoints and the responses, assumes a parameter and a data input. All it does then is multiply those together: 
+
+> `real ordered_logistic_glm_lpmf(int y | matrix x, vector beta, vector c)`
+> The log ordered logistic probability mass of y, given linear predictors x * beta, and cutpoints c. The cutpoints c must be ordered.
+
+I abuse this function by setting x as a 1 by N matrix where each row $\alpha_j + \beta_j \cdot \theta_{j,t}$ and setting beta to be just 1. My tests showed that this did substantially speed up performance. 
+
+
+::: {#lst-stan}
+```{.stan}
+{{< include model/model.stan >}}
+```
+Stan Model
+:::
+
+## Estimation on HPC 
+
+In order to actually estimate the model I use the [Ohio Super Computer](https://www.osc.edu/) which thankfully gives me $1,000 a year in free compute. I run the Stan model using [cmdstanr](https://mc-stan.org/cmdstanr/) which I've had a better time getting to use the GPU than anything else. 
+
+My R script is below. Nothing is that special. I set `STAN_NO_RANGE_CHECKS` and `stanc_options=list("O1")` to speed up performance. I've tried other optimization options but they've always run into issues. To use the GPU, `stan_opencl` has to be set to compile the model and the `opencl_ids` have to be set in the sampling function. 
+
+```{.r}
+{{< include model/estimation.R >}}
+```
+
+The OSC uses slurm to control jobs and my script is below. The most annoying aspect is that I've have to request a large amount of memory (100gb) but this is only really used at the very end when writing out the model output. 
+
+```{.sh}
+{{< include model/run.sh >}}
+```
+

@@ -1,0 +1,36 @@
+project:
+  type: website
+
+
+website:
+  title: "Voter Perceptions"
+  open-graph: true
+  twitter-card: true
+  site-url: "https://voterperceptions.org"
+  sidebar:
+    search: true
+    contents:
+      - href: index.qmd
+        text: Home
+      - legislative.qmd
+      - overtime.qmd
+      - faq.qmd
+      - section: "Estimation Details"
+        contents:
+          - generate/index.qmd
+          - generate/technical.qmd
+          - generate/data.qmd
+
+
+format:
+  html:
+    theme:
+      - cosmo
+      - brand
+      - styles.scss
+    toc: true
+    include-in-header: 
+      text:  |
+        <script defer data-domain="voterperceptions.org" src="https://plausible.io/js/script.outbound-links.js"></script>
+        <script>window.plausible = window.plausible || function() { (window.plausible.q = window.plausible.q || []).push(arguments) }</script>
+

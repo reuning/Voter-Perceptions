@@ -1,0 +1,10 @@
+---
+title: FAQ
+---
+
+- Where is the data? 
+    - Although you can download the data from the github, I recommend using the Harvard Dataverse as it provides a more canonical dataset. 
+- Why is X missing? 
+    - There are several possible explanations. First, it turns out that actually collecting information about all the candidates running for a general election is hard. Some mistakes were made along the way, this is especially true in the earlier years of the survey and so candidates are just missing. Second, the (C)CES changed what they asked throughout. For example, sometimes they ask about candidates for governors, sometimes they did not.
+- Is this measure any good? 
+    - I think so, but as all measures it has limits. In the end, this is based on voter _perceptions_ of ideology. Although they are scaled to try to make them as comparable as possible there might be limits, especially for extreme candidates. 

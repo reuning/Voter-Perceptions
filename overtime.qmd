@@ -1,0 +1,87 @@
+---
+title: Overtime Changes
+execute:
+  echo: false
+  warning: false
+format: 
+  html: 
+    include-after-body: 
+      - text: |
+          <script src="https://cdn.jsdelivr.net/npm/datalist-polyfill@1.25.1/datalist-polyfill.min.js"></script>
+---
+
+
+```{ojs}
+
+Plot.plot({
+  className: "plot",
+  y: {domain: [-4, 4]},
+  x: {domain: [2010, 2024], tickFormat: "", label: "",labelArrow: false},
+  color: {
+    legend: true
+  },
+  marks: [
+    Plot.axisY({
+      label: "Perceived Ideology",
+      labelAnchor: "center", 
+      labelArrow: false}),
+    Plot.axisY({
+      label: "Conservative", 
+      labelAnchor: "top"}),  
+    Plot.axisY({
+      label: "Liberal", 
+      labelAnchor: "bottom",
+      labelArrow: "down"}),  
+    Plot.gridY({stroke: "black", strokeOpacity: 0.2}),
+    Plot.gridX({stroke: "black", strokeOpacity: 0.2}),
+    Plot.dot(datafiltered, 
+    {
+      x: "year", 
+      y: "Ideology",
+      z: "Candidate",
+      fill: "Candidate",
+      channels: {
+        Name: "Candidate",
+        "Voter Ideo": "Ideology", 
+
+      },
+      tip: {
+        format: {
+          y: false,
+          x: false
+        }
+      }
+      }),
+    Plot.lineY(datafiltered, 
+    {
+      x: "year", 
+      y: "Ideology",
+      z: "Candidate",
+      stroke: "Candidate"
+      }),
+        Plot.areaY(datafiltered, {x: "year", y1: "Lower", y2: "Upper", z: "Candidate", fill: "Candidate", fillOpacity: 0.3})
+  ]
+  }
+)
+
+
+
+
+viewof candidates = multiselect({
+    options: d3.groupSort(data, (d) => d.Candidate, d => d.Candidate),
+    placeholder: "Select candidates...",
+     label: "Candidate", value: ["Democratic Party", "Republican Party", "Donald Trump", "Joseph R. Biden, Jr."]})
+
+data = FileAttachment("/generate/out/overtime.csv").csv({ typed: true })
+datafiltered = data.filter((d, i) => candidates.includes(d.Candidate))
+
+multiselect = require("multi-auto-select@0.0.10")
+
+
+```
+
+
+Notes: 
+
+- I've only included candidates who are present for more than 2 years to make the list less absurd. 
+- The candidates should autocomplete as you type. There appears to be a [very old bug](https://bugzilla.mozilla.org/show_bug.cgi?id=1535985) on Firefox for Android that prevents this from working. I hope this works on most other browsers. 
