@@ -145,7 +145,7 @@ Plot.plot({
 
 ## Bridging 
 
-A critical need in A-M scaling is for the raters to rate entities that others rate, these are sometimes referred to as "bridges". Bridges help to pin down the common scale, making ratings comparable. In the C/CES data there are a set of people/entities that everyone rates but these groups change overtime. In most cases ths includes the President and the two major political parties. 
+A critical need in A-M scaling is for the raters to rate entities that others rate, these are sometimes referred to as "bridges". Bridges help to pin down the common scale, making ratings comparable. In the C/CES data there are a set of people/entities that everyone rates but these groups change over time. In most cases ths includes the President and the two major political parties. 
 
 
 ```{r}
@@ -174,7 +174,7 @@ There are several years where the CES has included a panel of voters across mult
 
 1) Assume that voters have not changed at all across the survey panels. For this choice there would be one $\beta$ and one $\alpha$ for each voter which would be used repeatedly across panels. This assumes that they have not change their own political views in this time period, having roughly the same understanding of liberal-conservative across the time period. I thought this assumption was overly restrictive. 
 
-2) Use some sort of pooling model where each year's scores would help inform the other year's, but not entirely constrain them. This could be implemented with some sort of hierarchical prior on them or even a dynamic prior overtime. Although I think this is interesting, the computational complexity concerned me. 
+2) Use some sort of pooling model where each year's scores would help inform the other year's, but not entirely constrain them. This could be implemented with some sort of hierarchical prior on them or even a dynamic prior over time. Although I think this is interesting, the computational complexity concerned me. 
 
 3) Treat them as all independent. This, as I said, ignores potentially useful information but was feasible. 
 

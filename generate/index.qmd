@@ -161,7 +161,7 @@ longDataTheta = {
 }
 ```
 
-@fig-example-movement demonstrates how this works. At Time 1 $\theta_j$ is estimated to be 0, in each time period after that $\theta_j$ can move. The red line shows the median value, while the darker lines from it show the 10th and 90th percentile, and the furthest lines the maximum and minimum values (this is based on a sample of 500 draws). With no other information, $\theta_j$ will not move substantially from previous values, but the use of the Student's t-distribution allows for sudden large values (which is why the maximum and minimum can be so extreme). @fig-example-movement allows you to change the $\sigma$ parameter as well as set a drift parameter to see how the movement of $\theta_j$ evolves overtime. 
+@fig-example-movement demonstrates how this works. At Time 1 $\theta_j$ is estimated to be 0, in each time period after that $\theta_j$ can move. The red line shows the median value, while the darker lines from it show the 10th and 90th percentile, and the furthest lines the maximum and minimum values (this is based on a sample of 500 draws). With no other information, $\theta_j$ will not move substantially from previous values, but the use of the Student's t-distribution allows for sudden large values (which is why the maximum and minimum can be so extreme). @fig-example-movement allows you to change the $\sigma$ parameter as well as set a drift parameter to see how the movement of $\theta_j$ evolves over time. 
 
 ```{ojs}
 //| label: fig-example-movement
