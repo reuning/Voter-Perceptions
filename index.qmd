@@ -11,7 +11,7 @@ This website provides information about the Voter Perception data created in [Ha
 
 Below shows the perceived ideology of all candidates in a given state and year by election. In some instances candidates are missing because of difficulties labeling and changes in who is included, see the [FAQ](faq.qmd) for details. There are also visualizations showing [overtime changes](overtime.qmd) and how [legislative and perception ideology relate](legislative.qmd).
 
-This data is based on C/CES survey data. The actual data is available at the Harvard Dataverse, along with a crosswalk that connects the perception scores to [DIME](https://data.stanford.edu/dime), [Nominate](https://voteview.com/) and [538 Election](https://github.com/fivethirtyeight/election-results) data. In order to help anyone interested in the data the site includes an (overly) detailed [explanation of the methodology used.](generate/index.qmd)
+This data is based on C/CES survey data. The actual [data is available at the Harvard Dataverse](https://doi.org/10.7910/DVN/VSRRIY), including IDs that connects the perception scores to [DIME](https://data.stanford.edu/dime), [Nominate](https://voteview.com/) and [538 Election](https://github.com/fivethirtyeight/election-results) data. In order to help anyone interested in the data the site includes an (overly) detailed [explanation of the methodology used.](generate/index.qmd)
 
 
 ## Estimates 

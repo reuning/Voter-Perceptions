@@ -1,6 +1,4 @@
-Excluding `all_scores.csv` data is used in a variety of places on the website and is really just different subsets of the same data with different variables attached. I would not recommend using it directly. 
-
-`all_scores.csv` contains all the estimates with IDs. You can download it from here but it is also available on the Harvard Dataverse. 
+`all_scores.csv` contains all the estimates with IDs. You can download it from here but it is also available on the [Harvard Dataverse.](https://doi.org/10.7910/DVN/VSRRIY)
 
 The codebook for all_scores.csv:
 
