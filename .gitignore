@@ -1,4 +1,4 @@
 _site
-.quarto
 .venv
 .Rhistory
+/.quarto/

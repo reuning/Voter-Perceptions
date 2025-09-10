@@ -7,6 +7,8 @@ website:
   open-graph: true
   twitter-card: true
   site-url: "https://voterperceptions.org"
+  repo-url: https://github.com/reuning/voter-perceptions
+  repo-actions: [edit, source, issue]
   sidebar:
     search: true
     contents:
